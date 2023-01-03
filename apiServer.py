@@ -11,9 +11,9 @@ async def root():
     return {"message": "Hello people"}
 
 # ----------------------------------------------
-# SSRF
-@app.get("/test/")
-async def slow_route(path: str = "http://localhost:badport"):
+# Server Side Request Forgery (SSRF)
+@app.get("/CheckIfRemoteServerIsOnline/")
+async def checkIfRemoteServerIsOnline(path: str = "http://localhost:badport"):
     print(path)
     async with aiohttp.ClientSession() as session:
         async with session.get(path) as resp:
@@ -21,8 +21,12 @@ async def slow_route(path: str = "http://localhost:badport"):
             return(data)
 
 # ----------------------------------------------
-# Command Execution
-@app.get("/checkServer/{command}")
+# Remote Command Execution (RCE)
+# Not all commands are working, just as real life.
+# ipconfig (default)
+# whoami works
+# dir works
+@app.get("/checkServerIpConfig/{command}")
 def checkServer(command):
 	process = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
 	stderroutput = ''
@@ -36,7 +40,8 @@ def checkServer(command):
 
 # ----------------------------------------------
 # File Upload
-@app.post("/upload/file/")
+# Uploads to ./uploads folder
+@app.post("/uploadFile/")
 async def create_upload_file(file: UploadFile = File(...)):
 	file_location = f"uploads/{file.filename}"
 	with open(file_location, "wb+") as file_object:
@@ -44,9 +49,44 @@ async def create_upload_file(file: UploadFile = File(...)):
 	return {"info": f"file '{file.filename}' saved at '{file_location}'"}
 
 # ----------------------------------------------
-# LFI
+# Local File Inclusion (LFI)
 # Currently not vulnerable to path traversal
-@app.get("/readFile/{fileName}")
+@app.get("/downloadUpdates/{fileName}")
 async def readFile(fileName):
 	return FileResponse(path=fileName, filename=fileName)
-	
+
+# Future To Do
+# ----------------------------------------------
+# Not vulnerable versions for all vulns
+# ----------------------------------------------
+# Remote File Inclusion
+# ----------------------------------------------
+# Insecure Direct Object References (IDOR) 
+# ----------------------------------------------
+# OpenRedirect
+# ----------------------------------------------
+# SSTI
+# ----------------------------------------------
+# CORS
+# ----------------------------------------------
+# SQLi
+# ----------------------------------------------
+# CRLF
+# ----------------------------------------------
+# CSTI
+# ----------------------------------------------
+# CSV Injection
+# ----------------------------------------------
+# Parameter Pollution
+# ----------------------------------------------
+# XSLT Injection
+# ----------------------------------------------
+# XPath Injection
+# ----------------------------------------------
+# CSRF
+# ----------------------------------------------
+# XSS
+# ----------------------------------------------
+# XXE
+# ----------------------------------------------
+# HTTP Request Smuggling
