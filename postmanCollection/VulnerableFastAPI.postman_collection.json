@@ -1,0 +1,212 @@
+{
+	"info": {
+		"_postman_id": "76a05df2-0177-464d-be60-cdf5c92a6659",
+		"name": "VulnerableFastAPI",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "8519892"
+	},
+	"item": [
+		{
+			"name": "SSRF CheckIfRemoteServerIsOnline",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableUrlEncoding": false,
+				"followRedirects": true,
+				"followOriginalHttpMethod": true,
+				"strictSSL": false,
+				"disabledSystemHeaders": {},
+				"removeRefererHeaderOnRedirect": false,
+				"followAuthorizationHeader": false
+			},
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/CheckIfRemoteServerIsOnline/?path=http://localhost:5656",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"CheckIfRemoteServerIsOnline",
+						""
+					],
+					"query": [
+						{
+							"key": "path",
+							"value": "http://localhost:5656"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "RCE checkServerIpConfig",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"strictSSL": false
+			},
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/checkServerIpConfig/ipconfig",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"checkServerIpConfig",
+						"ipconfig"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "FileUpload uploadFile",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"strictSSL": false
+			},
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "lfiTest.txt"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/uploadFile/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"uploadFile",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "LFI downloadUpdates",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"strictSSL": false
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/downloadUpdates/lfiTest.txt",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"downloadUpdates",
+						"lfiTest.txt"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5151",
+			"type": "string"
+		}
+	]
+}
