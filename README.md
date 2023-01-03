@@ -1,7 +1,7 @@
 # VulnerableFastAPI
 
 ## Description:
-### VulnerableFastAPI Python program developed for learning AppSec and Pynt
+### VulnerableFastAPI Python program developed for learning AppSec and Pynt (https://docs.pynt.io/documentation/intro/overview)
 ### To Do:
 ### 1. Add more vulnerabilities
 ### 2. Add secure functions (as counter example for the vulnerable functions)
