@@ -17,6 +17,10 @@ def sql_generic_security_checks(func):
 
     return wrapper
 
+# Other to do
+# User rights decorator
+# Basic Auth decorator
+
 # Used to decorate all functions of a class.
 def decorate_all_functions(function_decorator):
     def decorator(cls):
