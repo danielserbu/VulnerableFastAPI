@@ -141,7 +141,7 @@ async def update_password(pwUpdate: PasswordUpdate):
 # Uploads to ./uploads folder
 # @ is logged in decorator
 @app.post("/uploadFile/")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), username: str = Depends(get_current_username)):
 	file_location = f"uploads/{file.filename}"
 	with open(file_location, "wb+") as file_object:
 		file_object.write(file.file.read())
@@ -151,7 +151,7 @@ async def upload_file(file: UploadFile = File(...)):
 # Server Side Request Forgery (SSRF)
 # is logged in decorator.
 @app.get("/CheckIfRemoteServerIsOnline/")
-async def checkIfRemoteServerIsOnline(path: str = "http://localhost:badport"):
+async def checkIfRemoteServerIsOnline(path: str = "http://localhost:badport", username: str = Depends(get_current_username)):
     print(path)
     async with aiohttp.ClientSession() as session:
         async with session.get(path) as resp:
@@ -166,7 +166,7 @@ async def checkIfRemoteServerIsOnline(path: str = "http://localhost:badport"):
 # dir works
 #@admin decorator
 @app.get("/admin/checkServerIpConfig/{command}")
-def checkServer(command):
+def checkServer(command, username: str = Depends(get_current_username)):
 	process = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
 	stderroutput = ''
 	stdoutput = ''
@@ -182,7 +182,7 @@ def checkServer(command):
 # Currently not vulnerable to path traversal
 #@admin decorator
 @app.get("/admin/downloadUpdates/{fileName}")
-async def readFile(fileName):
+async def readFile(fileName, username: str = Depends(get_current_username)):
 	return FileResponse(path=fileName, filename=fileName)
 
 
