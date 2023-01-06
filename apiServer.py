@@ -1,13 +1,11 @@
 from fastapi import FastAPI, File, UploadFile, Depends, Response, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import secrets
 import subprocess
 from DatabaseUtils import *
 from users import *
 import aiohttp
 import hashlib, base64
-from pydantic import BaseModel
 
 app = FastAPI()
 security = HTTPBasic()
@@ -99,30 +97,45 @@ async def login(username: str = Depends(get_current_username)):
 # ----------------------------------------------
 # Reset password
 # SQL Injection (Blind, SQLITE)
-# ToDo: Not cool, make sure to ask for old password.
-@app.get("/resetPassword/{username}")
-async def reset_password(username):
-	output = set_reset_password_to_true(username)
-	return(output)
+@app.get("/resetPassword/{username}/{oldPassword}")
+async def reset_password(username, oldPassword):
+	if CONST_SALTED_PASSWORDS:
+		old_password = return_hashed_password_with_salt(oldPassword)
+	else:
+		old_password = return_hashed_password(oldPassword)
+	dbPassword = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password", "username", "'" + username + "'")
+	is_correct_password = old_password == dbPassword[0][0]
+	if is_correct_password:
+		output = set_reset_password_to(username, 1)
+		return(output)
+	return{"Wrong old password."}
+	
 
 # ----------------------------------------------
 # Update user password
 # SQL Injection (Blind, SQLITE)
-# ToDo: Not cool, make sure to ask for old password.
-@app.post("/updatePassword/{previous_password}")
-async def update_user_password(userDetails: User, previous_password):
+@app.post("/updatePassword/")
+async def update_password(pwUpdate: PasswordUpdate):
+	if reset_password_status(pwUpdate.username)[0][0] == 0:
+		raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Password reset hasn't been requested."
+		)
 	if CONST_SALTED_PASSWORDS:
-		old_password = return_hashed_password_with_salt(previous_password)
-		new_password = return_hashed_password_with_salt(userDetails.password)
+		old_password = return_hashed_password_with_salt(pwUpdate.old_password)
+		new_password = return_hashed_password_with_salt(pwUpdate.new_password)
 	else:
-		old_password = return_hashed_password(previous_password)
-		new_password = return_hashed_password(userDetails.password)
-	dbPassword = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "username", "password", old_password)
-	if dbPassword == "":
-		return("Wrong previous password.")
-	output = update_user_password(userDetails.username, new_password)
-	return(output)
-
+		old_password = return_hashed_password(pwUpdate.old_password)
+		new_password = return_hashed_password(pwUpdate.new_password)
+	dbPassword = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password", "username", "'" + pwUpdate.username + "'")
+	is_correct_password = old_password == dbPassword[0][0]
+	if is_correct_password:
+		output = update_user_password(pwUpdate.username, new_password)
+		set_reset_password_to(pwUpdate.username, 0)
+		return{output}
+	else:
+		return{"Wrong previous password."}
+	
 # ----------------------------------------------
 # File Upload
 # Uploads to ./uploads folder

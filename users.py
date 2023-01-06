@@ -6,6 +6,11 @@ class User(BaseModel):
     rights: str
     password_reset: bool
 
+class PasswordUpdate(BaseModel):
+    username: str
+    old_password: str
+    new_password: str
+
 rightsDict = [
               {
                 "right": "admin",

@@ -157,11 +157,12 @@ def reset_password_status(username):
     trueOrFalse = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password_reset", "username", "'" + username + "'")
     return(trueOrFalse)
 
-def set_reset_password_to_true(username):
+def set_reset_password_to(username, resetPassword):
+    # resetPassword is 1 or 0
     user_in_db = check_user_is_in_db(username)
     if not user_in_db:
         return("User not registered.")
-    update_data_in_database(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password_reset", 1, "username", username)
+    update_data_in_database(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password_reset", resetPassword, "username", username)
     return("Reset password successfully.")
 
 def update_user_password(username, new_password):

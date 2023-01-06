@@ -18,6 +18,18 @@ def sql_generic_security_checks(func):
 
     return wrapper
 
+def is_user_allowed_to_run_function(func):
+    @wraps(func)
+    def wrapper(*args, **kw):
+        if args[1].contains(dangerous_stuff):
+            print('Dangerous characters inside input parameters.')
+            raise Exception('Exception')
+
+        res = func(*args, **kw)
+        return res
+
+    return wrapper
+
 # Other to do
 # User rights decorator
 # Basic Auth decorator
