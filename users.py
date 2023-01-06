@@ -11,7 +11,7 @@ class PasswordUpdate(BaseModel):
     old_password: str
     new_password: str
 
-rightsDict = [
+rightsDictList = [
               {
                 "right": "admin",
                 "functions": "all"

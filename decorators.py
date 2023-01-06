@@ -1,5 +1,6 @@
 from functools import wraps
 from .DatabaseUtils import return_user_rights
+from .users import rightsDictList
 
 # Create Input Parameter wrappers to validate user inputs in case of secure functions (future) and then decorate sql functions.
 
@@ -21,7 +22,9 @@ def sql_generic_security_checks(func):
 def is_user_allowed_to_run_function(func):
     @wraps(func)
     def wrapper(*args, **kw):
-        if args[1].contains(dangerous_stuff):
+        userObj = args[1]
+        userRights = return_user_rights(userObj.username)
+        if args[1].username:
             print('Dangerous characters inside input parameters.')
             raise Exception('Exception')
 
@@ -35,6 +38,7 @@ def is_user_allowed_to_run_function(func):
 # Basic Auth decorator
 
 # Used to decorate all functions of a class.
+# Not used yet.
 def decorate_all_functions(function_decorator):
     def decorator(cls):
         for name, obj in vars(cls).items():

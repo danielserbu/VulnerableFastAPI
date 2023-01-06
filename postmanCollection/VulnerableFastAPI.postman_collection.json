@@ -7,6 +7,197 @@
 	},
 	"item": [
 		{
+			"name": "Root",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Register",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\":\"testUser2\",\r\n    \"password\":\"testPassword\",\r\n    \"rights\":\"user\",\r\n    \"password_reset\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/register/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"register",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "resetPassword",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/resetPassword/admin/123456",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"resetPassword",
+						"admin",
+						"123456"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "updatePassword",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\":\"admin\",\r\n    \"old_password\":\"123456\",\r\n    \"new_password\":\"xxx\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/updatePassword/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"updatePassword",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "123456",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/login/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"login",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "FileUpload uploadFile",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"strictSSL": false
+			},
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "123456",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "lfiTest.txt"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/uploadFile/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"uploadFile",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "SSRF CheckIfRemoteServerIsOnline",
 			"event": [
 				{
@@ -32,7 +223,19 @@
 			},
 			"request": {
 				"auth": {
-					"type": "noauth"
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "123456",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
 				},
 				"method": "GET",
 				"header": [
@@ -63,7 +266,57 @@
 			"response": []
 		},
 		{
-			"name": "RCE checkServerIpConfig",
+			"name": "LFI admin/downloadUpdates",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"strictSSL": false
+			},
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "123456",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/admin/downloadUpdates/lfiTest.txt",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"admin",
+						"downloadUpdates",
+						"lfiTest.txt"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "RCE admin/checkServerIpConfig",
 			"event": [
 				{
 					"listen": "test",
@@ -83,99 +336,31 @@
 			},
 			"request": {
 				"auth": {
-					"type": "noauth"
-				},
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{baseUrl}}/checkServerIpConfig/ipconfig",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"checkServerIpConfig",
-						"ipconfig"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "FileUpload uploadFile",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status test\", function () {\r",
-							"    pm.response.to.have.status(200);\r",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"protocolProfileBehavior": {
-				"strictSSL": false
-			},
-			"request": {
-				"auth": {
-					"type": "noauth"
-				},
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "formdata",
-					"formdata": [
+					"type": "basic",
+					"basic": [
 						{
-							"key": "file",
-							"type": "file",
-							"src": "lfiTest.txt"
+							"key": "password",
+							"value": "123456",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
 						}
 					]
 				},
-				"url": {
-					"raw": "{{baseUrl}}/uploadFile/",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"uploadFile",
-						""
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "LFI downloadUpdates",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status test\", function () {\r",
-							"    pm.response.to.have.status(200);\r",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"protocolProfileBehavior": {
-				"strictSSL": false
-			},
-			"request": {
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/downloadUpdates/lfiTest.txt",
+					"raw": "{{baseUrl}}/admin/checkServerIpConfig/ipconfig",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
-						"downloadUpdates",
-						"lfiTest.txt"
+						"admin",
+						"checkServerIpConfig",
+						"ipconfig"
 					]
 				}
 			},

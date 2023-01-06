@@ -12,6 +12,8 @@ security = HTTPBasic()
 port = 5151
 
 
+	
+
 # Brute Forceable
 def return_hashed_password(password):
 	encoded_string = base64.b64encode(password.encode('utf8'))
@@ -38,11 +40,11 @@ def setup():
 	# Create users
 	if CONST_SALTED_PASSWORDS:
 		# Safely stored passwords
-		insert_user_into_db("admin", return_hashed_password_with_salt("123456"), password_reset=0)
+		insert_user_into_db("admin", return_hashed_password_with_salt("123456"), "admin", password_reset=0)
 		insert_user_into_db("daniel", return_hashed_password_with_salt("abcd1234"), password_reset=0)
 	else:
 		# Unsafely stored passwords
-		insert_user_into_db("admin", return_hashed_password("123456"), password_reset=0)
+		insert_user_into_db("admin", return_hashed_password("123456"), "admin", password_reset=0)
 		insert_user_into_db("daniel", return_hashed_password("abcd1234"), password_reset=0)
 
 # Call setup!
@@ -50,9 +52,10 @@ setup()
 
 @app.get("/")
 async def root():
-    return {"message": "Hello people"}
+	documentationPath = "http://localhost:5656" # Edit me
+	return {"message": "Hello people. You can check the documentation at " + documentationPath}
 
-
+############### Functions available to all ###############
 # ----------------------------------------------
 # Register
 # SQL Injection (Blind, SQLITE) with Broken Authentication
@@ -135,11 +138,12 @@ async def update_password(pwUpdate: PasswordUpdate):
 		return{output}
 	else:
 		return{"Wrong previous password."}
-	
+############### Functions available to all ###############
+
+############### Functions available to users ###############	
 # ----------------------------------------------
 # File Upload
 # Uploads to ./uploads folder
-# @ is logged in decorator
 @app.post("/uploadFile/")
 async def upload_file(file: UploadFile = File(...), username: str = Depends(get_current_username)):
 	file_location = f"uploads/{file.filename}"
@@ -149,7 +153,6 @@ async def upload_file(file: UploadFile = File(...), username: str = Depends(get_
 
 # ----------------------------------------------
 # Server Side Request Forgery (SSRF)
-# is logged in decorator.
 @app.get("/CheckIfRemoteServerIsOnline/")
 async def checkIfRemoteServerIsOnline(path: str = "http://localhost:badport", username: str = Depends(get_current_username)):
     print(path)
@@ -157,16 +160,24 @@ async def checkIfRemoteServerIsOnline(path: str = "http://localhost:badport", us
         async with session.get(path) as resp:
             data = await resp.text()
             return(data)
+############### Functions available to users ###############	
 
+
+############### Functions available to admins ###############	
+def is_user_allowed_to_run_admin_functions(username):
+	userRights = return_user_rights(username)
+	print(userRights)
+	return userRights == "admin"
 # ----------------------------------------------
 # Remote Command Execution (RCE)
 # Not all commands are working, just as real life.
 # ipconfig (default)
 # whoami works
 # dir works
-#@admin decorator
 @app.get("/admin/checkServerIpConfig/{command}")
 def checkServer(command, username: str = Depends(get_current_username)):
+	if not is_user_allowed_to_run_admin_functions(username):
+		return {"You're required to have admin access."}
 	process = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
 	stderroutput = ''
 	stdoutput = ''
@@ -180,11 +191,12 @@ def checkServer(command, username: str = Depends(get_current_username)):
 # ----------------------------------------------
 # Local File Inclusion (LFI)
 # Currently not vulnerable to path traversal
-#@admin decorator
 @app.get("/admin/downloadUpdates/{fileName}")
 async def readFile(fileName, username: str = Depends(get_current_username)):
+	if not is_user_allowed_to_run_admin_functions(username):
+		return {"You're required to have admin access."}
 	return FileResponse(path=fileName, filename=fileName)
-
+############### Functions available to admins ###############	
 
 
 

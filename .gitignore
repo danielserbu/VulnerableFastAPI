@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 
 /databases/*.sqlite3
+/uploads/*.*

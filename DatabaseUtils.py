@@ -173,7 +173,6 @@ def update_user_password(username, new_password):
     return("Password updated successfully.")
 
 def return_user_rights(username):
-    rights_in_db = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "rights", "username", username)
-    print(rights_in_db)
-    return rights_in_db
+    rights_in_db = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "rights", "username", "'" + username + "'")
+    return rights_in_db[0][0]
 
