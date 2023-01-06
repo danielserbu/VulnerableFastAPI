@@ -1,32 +1,32 @@
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, UploadFile, Depends, Response, HTTPException, status
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
 import subprocess
-from .DatabaseUtils import *
+from DatabaseUtils import *
+from users import *
 import aiohttp
-import sqlite3
-import bcrypt
+import hashlib, base64
 from pydantic import BaseModel
 
 app = FastAPI()
+security = HTTPBasic()
 port = 5151
 
-class User(BaseModel):
-    username: str
-    password: str
-	# Note: Adds posibility to reset password in Login Request via mass enumeration.
-    password_reset: bool
 
 # Brute Forceable
 def return_hashed_password(password):
-	hashed_password = bcrypt.hashpw(password)
-	return(hashed_password)
+	encoded_string = base64.b64encode(password.encode('utf8'))
+	sha256_encoded_string=hashlib.sha256(encoded_string).hexdigest()
+	return(sha256_encoded_string)
 
 # Much harder to brute force
 def return_hashed_password_with_salt(password):
-	salt = bcrypt.gensalt()
-	# bcrypt.gensalt() is cool, but let's use a constant salt set up in the code.
-	hashed_password = bcrypt.hashpw(password, salt)
-	return(hashed_password)
+	salt = "secretSalt123"
+	pw = password + salt
+	encoded_string = base64.b64encode(pw.encode('utf8'))
+	sha256_encoded_string=hashlib.sha256(encoded_string).hexdigest()
+	return(sha256_encoded_string)
 
 CONST_SALTED_PASSWORDS = False
 
@@ -39,47 +39,21 @@ def setup():
 		create_server_databases()
 	# Create users
 	if CONST_SALTED_PASSWORDS:
-		# Mock users for testing
 		# Safely stored passwords
 		insert_user_into_db("admin", return_hashed_password_with_salt("123456"), password_reset=0)
 		insert_user_into_db("daniel", return_hashed_password_with_salt("abcd1234"), password_reset=0)
 	else:
-		# Mock users for testing
 		# Unsafely stored passwords
 		insert_user_into_db("admin", return_hashed_password("123456"), password_reset=0)
 		insert_user_into_db("daniel", return_hashed_password("abcd1234"), password_reset=0)
-	
+
+# Call setup!
+setup()
+
 @app.get("/")
 async def root():
     return {"message": "Hello people"}
 
-# ----------------------------------------------
-# Server Side Request Forgery (SSRF)
-@app.get("/CheckIfRemoteServerIsOnline/")
-async def checkIfRemoteServerIsOnline(path: str = "http://localhost:badport"):
-    print(path)
-    async with aiohttp.ClientSession() as session:
-        async with session.get(path) as resp:
-            data = await resp.text()
-            return(data)
-
-# ----------------------------------------------
-# Remote Command Execution (RCE)
-# Not all commands are working, just as real life.
-# ipconfig (default)
-# whoami works
-# dir works
-@app.get("/checkServerIpConfig/{command}")
-def checkServer(command):
-	process = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
-	stderroutput = ''
-	stdoutput = ''
-	while True:
-		stderroutput += process.stderr.read()
-		stdoutput += process.stdout.read()
-		if process.stderr.read() == '' and process.poll() != None:
-			break
-	return {"output: " + stdoutput + "\nerror: " + stderroutput}
 
 # ----------------------------------------------
 # Register
@@ -90,35 +64,37 @@ async def register(userDetails: User):
 		password = return_hashed_password_with_salt(userDetails.password)
 	else:
 		password = return_hashed_password(userDetails.password)
-	status = insert_user_into_db(userDetails.username, password, password_reset = False)
-	if status == True:
-		return {userDetails.username + " successfully created."}
-	elif status == False:
-		return("Failed to create user.")
-	else:
-		# Username already registered->Username Enumeration.
-		return(status)
+	status = insert_user_into_db(userDetails.username, password, userDetails.rights , password_reset = False)
+	return (status)
 
 # ----------------------------------------------
 # Login
 # SQL Injection (Blind, SQLITE)
-# Should be vulnerable to mass enumeration too (be able to reset_password).
-@app.post("/login/")
-async def login(userDetails: User):
-	if is_reset_password_true(userDetails.username):
-		return("You must reset your password first, please use /updatePassword/$previous_password API POST Call")
-	if CONST_SALTED_PASSWORDS:
-		password = return_hashed_password_with_salt(userDetails.password)
-	else:
-		password = return_hashed_password(userDetails.password)
-	validation = validate_user_with_password_in_db(userDetails.username, password)
-	if validation:
-		# ToDo: return BASIC Auth
-		return("Token")
-	else:
-		# Login failed (brute forcing)
-		return("Login failed.")
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    dbUsername = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "username", "username", "'" + str(credentials.username) + "'")
+    is_correct_username = str(credentials.username) == dbUsername[0][0]
+    if CONST_SALTED_PASSWORDS:
+        current_password_bytes = return_hashed_password_with_salt(str(credentials.password))
+    else:
+        current_password_bytes = return_hashed_password(str(credentials.password))
+    dbPassword = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password", "username", "'" + str(credentials.username) + "'")
+    is_correct_password = current_password_bytes == dbPassword[0][0]
+    if not (is_correct_username and is_correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password.",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
+@app.get("/login/")
+async def login(username: str = Depends(get_current_username)):
+	if reset_password_status(username)[0][0] == 1:
+		raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="You must reset your password first, please use /updatePassword/$previous_password API POST Call"
+		)
+	return {"username": username}
 
 # ----------------------------------------------
 # Reset password
@@ -150,19 +126,67 @@ async def update_user_password(userDetails: User, previous_password):
 # ----------------------------------------------
 # File Upload
 # Uploads to ./uploads folder
+# @ is logged in decorator
 @app.post("/uploadFile/")
-async def create_upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...)):
 	file_location = f"uploads/{file.filename}"
 	with open(file_location, "wb+") as file_object:
 		file_object.write(file.file.read())
 	return {"info": f"file '{file.filename}' saved at '{file_location}'"}
 
 # ----------------------------------------------
+# Server Side Request Forgery (SSRF)
+# is logged in decorator.
+@app.get("/CheckIfRemoteServerIsOnline/")
+async def checkIfRemoteServerIsOnline(path: str = "http://localhost:badport"):
+    print(path)
+    async with aiohttp.ClientSession() as session:
+        async with session.get(path) as resp:
+            data = await resp.text()
+            return(data)
+
+# ----------------------------------------------
+# Remote Command Execution (RCE)
+# Not all commands are working, just as real life.
+# ipconfig (default)
+# whoami works
+# dir works
+#@admin decorator
+@app.get("/admin/checkServerIpConfig/{command}")
+def checkServer(command):
+	process = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
+	stderroutput = ''
+	stdoutput = ''
+	while True:
+		stderroutput += process.stderr.read()
+		stdoutput += process.stdout.read()
+		if process.stderr.read() == '' and process.poll() != None:
+			break
+	return {"output: " + stdoutput + "\nerror: " + stderroutput}
+
+# ----------------------------------------------
 # Local File Inclusion (LFI)
 # Currently not vulnerable to path traversal
-@app.get("/downloadUpdates/{fileName}")
+#@admin decorator
+@app.get("/admin/downloadUpdates/{fileName}")
 async def readFile(fileName):
 	return FileResponse(path=fileName, filename=fileName)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Future To Do
 # ----------------------------------------------
@@ -175,10 +199,6 @@ async def readFile(fileName):
 # BOLA AND BFLA
 # ----------------------------------------------
 # Lack of resources & Rate Limiting
-# ----------------------------------------------
-# Not vulnerable versions for all vulns
-# ----------------------------------------------
-# Not vulnerable versions for all vulns
 # ----------------------------------------------
 # Not vulnerable versions for all vulns
 # ----------------------------------------------

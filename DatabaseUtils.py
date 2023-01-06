@@ -8,10 +8,12 @@ USERS_DB_TABLE_NAME = "users"
 USER_TABLE_COLUMNS = 'id INTEGER PRIMARY KEY AUTOINCREMENT, ' \
                       'username text UNIQUE, ' \
                       'password text, ' \
+                      'rights text, ' \
                       'password_reset INTEGER'
 
 USER_TABLE_COLUMN_NAMES = "username text UNIQUE,  \
                             password text, \
+                            rights text, \
                             password_reset INTEGER"
 
 SERVER_DATABASES_LIST = [USERS_DB_NAME]
@@ -100,8 +102,9 @@ def get_specific_data_from_table_row_with_condition(db_path, table, string_colum
     db = sqlite3.connect(db_path)
     db_cursor_obj = db.cursor()
     output = db_cursor_obj.execute(
-        "SELECT %s FROM %s WHERE %s='%s' ORDER BY id DESC" % (
+        "SELECT %s FROM %s WHERE %s=%s ORDER BY id DESC" % (
             string_columns_list, table, condition_left, condition_right)).fetchall()
+    db.commit()
     db_cursor_obj.close()
     return output
 
@@ -121,29 +124,25 @@ def update_data_in_database(db_path, table_name, column, new_value, condition_le
 
 def check_user_is_in_db(username):
     output = get_all_data_from_table_row(USERS_DB_NAME, USERS_DB_TABLE_NAME, "username", username)
-    print(output)
-    if output != "":
-        return(True)
-    else:
-        return(False)
+    return(output)
 
-def insert_user_into_db(username, password, password_reset = False):
+def insert_user_into_db(username, password, rights = "user", password_reset = False):
     user_in_db = check_user_is_in_db(username)
     # Add username enumeration.
     if user_in_db:
-        return("User already registered.")
+        return{"User already registered. "}
     try:
         db = sqlite3.connect(USERS_DB_NAME)
         db_cursor_obj = db.cursor()
-        db_cursor_obj.execute('INSERT INTO "{}"(username, password, password_reset) values(?,?,?)'.format(USERS_DB_TABLE_NAME),
-                                        (username, password, password_reset))
+        db_cursor_obj.execute('INSERT INTO "{}" (username, password, rights, password_reset) values(?,?,?,?)'.format(USERS_DB_TABLE_NAME),
+                                        (username, password, rights, password_reset))
     except Exception as e:
         print("buba")
-        return False
+        return{"Failed to register"}
     finally:
         db.commit()
         db_cursor_obj.close()
-        return True
+        return{"Registered successfully"}
 
 def validate_user_with_password_in_db(username, password):
     # ToDo: Create a function that can evaluate 2 conditions at once ->> following code is not ok.
@@ -154,8 +153,8 @@ def validate_user_with_password_in_db(username, password):
     else:
         return False
 
-def is_reset_password_true(username):
-    trueOrFalse = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "reset_password", "username", username)
+def reset_password_status(username):
+    trueOrFalse = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password_reset", "username", "'" + username + "'")
     return(trueOrFalse)
 
 def set_reset_password_to_true(username):
@@ -169,7 +168,11 @@ def update_user_password(username, new_password):
     user_in_db = check_user_is_in_db(username)
     if not user_in_db:
         return("User not registered.")
-    update_data_in_database(USERS_DB_NAME, USERS_DB_TABLE_NAME, "new_password", 1, "username", username)
+    update_data_in_database(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password", new_password, "username", username)
     return("Password updated successfully.")
 
+def return_user_rights(username):
+    rights_in_db = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "rights", "username", username)
+    print(rights_in_db)
+    return rights_in_db
 

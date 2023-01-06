@@ -1,9 +1,10 @@
 from functools import wraps
+from .DatabaseUtils import return_user_rights
 
 # Create Input Parameter wrappers to validate user inputs in case of secure functions (future) and then decorate sql functions.
 
 # Example
-dangerous_stuff = ["OR", "AND", "=", "1==1", "'miau'='miau'" ";", "--", " ", "&&", "||"]
+dangerous_stuff = ["OR", "AND", "=", "1==1", "'miau'=='miau'" ";", "--", " ", "&&", "||"]
 
 def sql_generic_security_checks(func):
     @wraps(func)
