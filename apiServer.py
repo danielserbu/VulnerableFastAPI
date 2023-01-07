@@ -1,18 +1,25 @@
-from fastapi import FastAPI, File, UploadFile, Depends, Response, HTTPException, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, APIRouter, Request, File, UploadFile, Depends, Response, HTTPException, status, Form
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import subprocess
 from DatabaseUtils import *
 from users import *
 import aiohttp
 import hashlib, base64
+from os import path
 
-app = FastAPI()
+pth = path.dirname(__file__)
+
+# Gonna add routers in the future.
+#router = APIRouter()
+app = FastAPI(title='VulnerableFastAPI')
+#app.include_router(router, prefix="/admin")
 security = HTTPBasic()
-port = 5151
-
-
-	
+#port = 5151 # Useless
+app.mount("/templates", StaticFiles(directory="templates"), name="templates")
+templates = Jinja2Templates(directory="templates")
 
 # Brute Forceable
 def return_hashed_password(password):
@@ -20,7 +27,7 @@ def return_hashed_password(password):
 	sha256_encoded_string=hashlib.sha256(encoded_string).hexdigest()
 	return(sha256_encoded_string)
 
-# Much harder to brute force
+# Harder to brute force
 def return_hashed_password_with_salt(password):
 	salt = "secretSalt123"
 	pw = password + salt
@@ -30,14 +37,13 @@ def return_hashed_password_with_salt(password):
 
 CONST_SALTED_PASSWORDS = False
 
-# Db Setup
-def setup():
+def db_setup():
 	if not check_if_server_databases_exist():
 		create_server_databases()
 	else:
 		cleanup_server_databases()
 		create_server_databases()
-	# Create users
+	# Create users for testing
 	if CONST_SALTED_PASSWORDS:
 		# Safely stored passwords
 		insert_user_into_db("admin", return_hashed_password_with_salt("123456"), "admin", password_reset=0)
@@ -47,13 +53,54 @@ def setup():
 		insert_user_into_db("admin", return_hashed_password("123456"), "admin", password_reset=0)
 		insert_user_into_db("daniel", return_hashed_password("abcd1234"), password_reset=0)
 
-# Call setup!
-setup()
+db_setup()
 
 @app.get("/")
 async def root():
+	# redirects to login
+	# Return main page with input to login and links to register, reset
 	documentationPath = "http://localhost:5656" # Edit me
 	return {"message": "Hello people. You can check the documentation at " + documentationPath}
+
+@app.get("/loginPage", response_class=HTMLResponse)
+async def login_page(request:Request):
+	# Return main page with input to login and links to register, reset
+	with open(path.join(pth, "templates/loginPage.html")) as f:
+		return HTMLResponse(content=f.read())
+
+
+@app.get("/user")
+async def logged_in():
+	# Return logged in page with Links to upload, checkServer
+	documentationPath = "http://localhost:5656" # Edit me
+	return HTMLResponse("""
+				<!DOCTYPE html>
+<html>
+<body>
+
+<h1>My First Heading</h1>
+<p>My first paragraph.</p>
+
+</body>
+</html>
+		""")
+
+@app.get("/admin")
+async def logged_in_admin():
+	# Return admin logged in page with Links to downloadUpdates, checkServerIpConfig
+	documentationPath = "http://localhost:5656" # Edit me
+	return HTMLResponse("""
+				<!DOCTYPE html>
+<html>
+<body>
+
+<h1>My First Heading</h1>
+<p>My first paragraph.</p>
+
+</body>
+</html>
+		""")
+
 
 ############### Functions available to all ###############
 # ----------------------------------------------
@@ -73,7 +120,10 @@ async def register(userDetails: User):
 # SQL Injection (Blind, SQLITE)
 def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     dbUsername = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "username", "username", "'" + str(credentials.username) + "'")
-    is_correct_username = str(credentials.username) == dbUsername[0][0]
+    try:
+        is_correct_username = str(credentials.username) == dbUsername[0][0]
+    except IndexError:
+        return("Username doesn't exist.")
     if CONST_SALTED_PASSWORDS:
         current_password_bytes = return_hashed_password_with_salt(str(credentials.password))
     else:
@@ -90,6 +140,18 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
 
 @app.get("/login/")
 async def login(username: str = Depends(get_current_username)):
+	if username == "Username doesn't exist.": # Username enumeration
+		return{username}
+	if reset_password_status(username)[0][0] == 1:
+		raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="You must reset your password first, please use /updatePassword/$previous_password API POST Call"
+		)
+	return {"username": username}
+
+# From html
+@app.post("/login/")
+async def login(username: str = Form(), password: str = Form()):
 	if reset_password_status(username)[0][0] == 1:
 		raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

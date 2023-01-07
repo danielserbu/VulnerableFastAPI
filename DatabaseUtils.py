@@ -154,7 +154,10 @@ def validate_user_with_password_in_db(username, password):
         return False
 
 def reset_password_status(username):
-    trueOrFalse = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password_reset", "username", "'" + username + "'")
+    try:
+        trueOrFalse = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password_reset", "username", "'" + username + "'")
+    except:
+        trueOrFalse = False
     return(trueOrFalse)
 
 def set_reset_password_to(username, resetPassword):
