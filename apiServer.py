@@ -1,8 +1,10 @@
 from fastapi import FastAPI, APIRouter, Request, File, UploadFile, Depends, Response, HTTPException, status, Form
-from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi_login import LoginManager
+from fastapi_login.exceptions import InvalidCredentialsException
 import subprocess
 from DatabaseUtils import *
 from users import *
@@ -10,16 +12,19 @@ import aiohttp
 import hashlib, base64
 from os import path
 
-pth = path.dirname(__file__)
-
 # Gonna add routers in the future.
 #router = APIRouter()
-app = FastAPI(title='VulnerableFastAPI')
 #app.include_router(router, prefix="/admin")
+
+app = FastAPI(title='VulnerableFastAPI')
+pth = path.dirname(__file__)
+SECRET = "SEC-RET" #import os; print(os.urandom(24).hex()).
 security = HTTPBasic()
-#port = 5151 # Useless
 app.mount("/templates", StaticFiles(directory="templates"), name="templates")
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=path.join(pth, "templates"))
+
+manager = LoginManager(SECRET,token_url="/login/",use_cookie=True)
+manager.cookie_name = "Auth"
 
 # Brute Forceable
 def return_hashed_password(password):
@@ -47,17 +52,17 @@ def db_setup():
 	if CONST_SALTED_PASSWORDS:
 		# Safely stored passwords
 		insert_user_into_db("admin", return_hashed_password_with_salt("123456"), "admin", password_reset=0)
-		insert_user_into_db("daniel", return_hashed_password_with_salt("abcd1234"), password_reset=0)
+		insert_user_into_db("daniel", return_hashed_password_with_salt("123456"), password_reset=0)
 	else:
 		# Unsafely stored passwords
 		insert_user_into_db("admin", return_hashed_password("123456"), "admin", password_reset=0)
-		insert_user_into_db("daniel", return_hashed_password("abcd1234"), password_reset=0)
+		insert_user_into_db("daniel", return_hashed_password("123456"), password_reset=0)
 
 db_setup()
 
 @app.get("/")
 async def root():
-	# redirects to login
+	# redirects to login (ToDo)
 	# Return main page with input to login and links to register, reset
 	documentationPath = "http://localhost:5656" # Edit me
 	return {"message": "Hello people. You can check the documentation at " + documentationPath}
@@ -68,38 +73,35 @@ async def login_page(request:Request):
 	with open(path.join(pth, "templates/loginPage.html")) as f:
 		return HTMLResponse(content=f.read())
 
+@app.get("/registerPage", response_class=HTMLResponse)
+async def register_page(request:Request):
+	# Return main page with input to login and links to register, reset
+	with open(path.join(pth, "templates/registerPage.html")) as f:
+		return HTMLResponse(content=f.read())
+
+@app.get("/resetPage", response_class=HTMLResponse)
+async def reset_page(request:Request):
+	# Return main page with input to login and links to register, reset
+	with open(path.join(pth, "templates/resetPage.html")) as f:
+		return HTMLResponse(content=f.read())
+
+@app.get("/updatePasswordPage", response_class=HTMLResponse)
+async def updatepw_page(request:Request):
+	# Return main page with input to login and links to register, reset
+	with open(path.join(pth, "templates/updatePasswordPage.html")) as f:
+		return HTMLResponse(content=f.read())
 
 @app.get("/user")
-async def logged_in():
+async def logged_in(_=Depends(manager)):
 	# Return logged in page with Links to upload, checkServer
-	documentationPath = "http://localhost:5656" # Edit me
-	return HTMLResponse("""
-				<!DOCTYPE html>
-<html>
-<body>
-
-<h1>My First Heading</h1>
-<p>My first paragraph.</p>
-
-</body>
-</html>
-		""")
+	with open(path.join(pth, "templates/userPage.html")) as f:
+		return HTMLResponse(content=f.read())
 
 @app.get("/admin")
-async def logged_in_admin():
+async def logged_in_admin(_=Depends(manager)):
 	# Return admin logged in page with Links to downloadUpdates, checkServerIpConfig
-	documentationPath = "http://localhost:5656" # Edit me
-	return HTMLResponse("""
-				<!DOCTYPE html>
-<html>
-<body>
-
-<h1>My First Heading</h1>
-<p>My first paragraph.</p>
-
-</body>
-</html>
-		""")
+	with open(path.join(pth, "templates/adminPage.html")) as f:
+		return HTMLResponse(content=f.read())
 
 
 ############### Functions available to all ###############
@@ -138,6 +140,42 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
+@manager.user_loader
+def load_user(username:str):
+    dbUsername = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "username", "username", "'" + username + "'")
+    return dbUsername
+
+@app.post("/auth/login")
+def login(data: OAuth2PasswordRequestForm = Depends()):
+    username = data.username
+    password = data.password
+    user = load_user(username)
+    if reset_password_status(user) == True:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="You must reset your password first, please use /updatePassword/$previous_password API POST Call"
+		)
+    if CONST_SALTED_PASSWORDS:
+        received_password = return_hashed_password_with_salt(str(password))
+    else:
+        received_password = return_hashed_password(str(password))
+    dbPassword = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password", "username", "'" + str(username) + "'")
+    if not user:
+        raise InvalidCredentialsException
+    elif received_password != dbPassword[0][0]:
+        raise InvalidCredentialsException
+    access_token = manager.create_access_token(
+        data={"sub":username}
+    )
+	# Redirect based on user rights.
+    if not is_user_allowed_to_run_admin_functions(username):
+        resp = RedirectResponse(url="/user",status_code=status.HTTP_302_FOUND)
+    else:
+        resp = RedirectResponse(url="/admin",status_code=status.HTTP_302_FOUND)
+    manager.set_cookie(resp,access_token)
+    return resp
+
+# Basic Auth
 @app.get("/login/")
 async def login(username: str = Depends(get_current_username)):
 	if username == "Username doesn't exist.": # Username enumeration
@@ -149,14 +187,22 @@ async def login(username: str = Depends(get_current_username)):
 		)
 	return {"username": username}
 
-# From html
+# Basic Auth from html
 @app.post("/login/")
 async def login(username: str = Form(), password: str = Form()):
-	if reset_password_status(username)[0][0] == 1:
+	try:
+		get_current_username()
+		if reset_password_status(username)[0][0] == 1:
+			raise HTTPException(
+				status_code=status.HTTP_401_UNAUTHORIZED,
+				detail="You must reset your password first, please use /updatePassword/$previous_password API POST Call"
+			)
+	except:
 		raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="You must reset your password first, please use /updatePassword/$previous_password API POST Call"
-		)
+            detail="Incorrect username or password.",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 	return {"username": username}
 
 # ----------------------------------------------
