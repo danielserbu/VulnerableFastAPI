@@ -21,6 +21,7 @@ pth = path.dirname(__file__)
 SECRET = "SEC-RET" #import os; print(os.urandom(24).hex()).
 security = HTTPBasic()
 app.mount("/templates", StaticFiles(directory="templates"), name="templates")
+# No Jinja for now, but will add for SSTI
 templates = Jinja2Templates(directory=path.join(pth, "templates"))
 
 manager = LoginManager(SECRET,token_url="/login/",use_cookie=True)
@@ -64,8 +65,10 @@ db_setup()
 async def root():
 	# redirects to login (ToDo)
 	# Return main page with input to login and links to register, reset
-	documentationPath = "http://localhost:5656" # Edit me
-	return {"message": "Hello people. You can check the documentation at " + documentationPath}
+	#documentationPath = "http://localhost:5656" # Edit me
+	#return {"message": "Hello people. You can check the documentation at " + documentationPath}
+	resp = RedirectResponse(url="/loginPage",status_code=status.HTTP_302_FOUND)
+	return resp
 
 @app.get("/loginPage", response_class=HTMLResponse)
 async def login_page(request:Request):
