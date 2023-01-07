@@ -11,6 +11,7 @@ from users import *
 import aiohttp
 import hashlib, base64
 from os import path
+from datetime import timedelta
 
 # Gonna add routers in the future.
 #router = APIRouter()
@@ -63,7 +64,6 @@ db_setup()
 
 @app.get("/")
 async def root():
-	# redirects to login (ToDo)
 	# Return main page with input to login and links to register, reset
 	#documentationPath = "http://localhost:5656" # Edit me
 	#return {"message": "Hello people. You can check the documentation at " + documentationPath}
@@ -168,7 +168,7 @@ def login(data: OAuth2PasswordRequestForm = Depends()):
     elif received_password != dbPassword[0][0]:
         raise InvalidCredentialsException
     access_token = manager.create_access_token(
-        data={"sub":username}
+        data={"sub":username}, expires=timedelta(hours=12)
     )
 	# Redirect based on user rights.
     if not is_user_allowed_to_run_admin_functions(username):
