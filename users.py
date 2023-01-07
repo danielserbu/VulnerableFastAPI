@@ -6,19 +6,16 @@ class User(BaseModel):
     rights: str
     password_reset: bool
 
+#class ResetPassword(BaseModel):
+#    username: str
+#    old_password: str
+
 class PasswordUpdate(BaseModel):
     username: str
     old_password: str
     new_password: str
 
-rightsDictList = [
-              {
+rightsDictList = {
                 "right": "admin",
                 "functions": "all"
               }
-              ,
-              {
-                "right": "user",
-                "functions": "upload_file, CheckIfRemoteServerIsOnline"
-              }
-             ]

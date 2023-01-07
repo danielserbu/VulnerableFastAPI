@@ -211,17 +211,21 @@ async def login(username: str = Form(), password: str = Form()):
 # ----------------------------------------------
 # Reset password
 # SQL Injection (Blind, SQLITE)
-@app.get("/resetPassword/{username}/{oldPassword}")
-async def reset_password(username, oldPassword):
+@app.post("/resetPassword/")
+async def reset_password(data: OAuth2PasswordRequestForm = Depends()):
+	username = data.username
+	password = data.password
+	user = load_user(username)
 	if CONST_SALTED_PASSWORDS:
-		old_password = return_hashed_password_with_salt(oldPassword)
+		old_password = return_hashed_password_with_salt(password)
 	else:
-		old_password = return_hashed_password(oldPassword)
+		old_password = return_hashed_password(password)
 	dbPassword = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password", "username", "'" + username + "'")
 	is_correct_password = old_password == dbPassword[0][0]
 	if is_correct_password:
 		output = set_reset_password_to(username, 1)
-		return(output)
+		resp = RedirectResponse(url="/updatePasswordPage",status_code=status.HTTP_302_FOUND)
+		return resp
 	return{"Wrong old password."}
 	
 
@@ -229,26 +233,23 @@ async def reset_password(username, oldPassword):
 # Update user password
 # SQL Injection (Blind, SQLITE)
 @app.post("/updatePassword/")
-async def update_password(pwUpdate: PasswordUpdate):
-	if reset_password_status(pwUpdate.username)[0][0] == 0:
+async def update_password(data: OAuth2PasswordRequestForm = Depends()):
+	username = data.username
+	password = data.password
+	user = load_user(username)
+	if reset_password_status(username)[0][0] == 0:
 		raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Password reset hasn't been requested."
 		)
 	if CONST_SALTED_PASSWORDS:
-		old_password = return_hashed_password_with_salt(pwUpdate.old_password)
-		new_password = return_hashed_password_with_salt(pwUpdate.new_password)
+		new_password = return_hashed_password_with_salt(password)
 	else:
-		old_password = return_hashed_password(pwUpdate.old_password)
-		new_password = return_hashed_password(pwUpdate.new_password)
-	dbPassword = get_specific_data_from_table_row_with_condition(USERS_DB_NAME, USERS_DB_TABLE_NAME, "password", "username", "'" + pwUpdate.username + "'")
-	is_correct_password = old_password == dbPassword[0][0]
-	if is_correct_password:
-		output = update_user_password(pwUpdate.username, new_password)
-		set_reset_password_to(pwUpdate.username, 0)
-		return{output}
-	else:
-		return{"Wrong previous password."}
+		new_password = return_hashed_password(password)
+	output = update_user_password(username, new_password)
+	set_reset_password_to(username, 0)
+	resp = RedirectResponse(url="/loginPage",status_code=status.HTTP_302_FOUND)
+	return resp
 ############### Functions available to all ###############
 
 ############### Functions available to users ###############	
